@@ -102,6 +102,7 @@
     showRenderModal = true;
     renderStatus = "";
     renderError = "";
+    renderProgress = 0;
     if (!outputPath && audioFile) {
       outputPath = audioFile.replace(/\.[^.]+$/, ".mp4");
     }
@@ -194,6 +195,12 @@
       });
       renderStatus = "渲染完成";
     } catch (err) {
+      if (typeof err === "string" && err.includes("Canceled")) {
+        renderStatus = "渲染取消";
+        renderProgress = 100;
+        isRendering = false;
+        return;
+      }
       renderStatus = "";
       renderError =
         typeof err === "string" && err.trim()
@@ -202,6 +209,10 @@
     } finally {
       isRendering = false;
     }
+  }
+
+  async function cancelRender() {
+    await invoke('cancel_render');
   }
 </script>
 
@@ -362,8 +373,8 @@
         <button
           type="button"
           class="ghost"
-          on:click={closeRenderModal}
-          disabled={isRendering}
+          on:click={cancelRender}
+          disabled={!isRendering}
         >
           取消
         </button>

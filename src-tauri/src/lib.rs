@@ -5,6 +5,10 @@ use std::io::{BufRead, BufReader, Write};
 #[cfg(windows)]
 use std::os::windows::process::CommandExt;
 use std::process::{Command, Stdio};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
 use tauri::{Emitter, Window};
 use tempfile::NamedTempFile;
 
@@ -15,10 +19,13 @@ fn greet(name: &str) -> String {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let cancel_flag = Arc::new(AtomicBool::new(false));
+
     tauri::Builder::default()
+        .manage(cancel_flag.clone())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
-        .invoke_handler(tauri::generate_handler![greet, render_video])
+        .invoke_handler(tauri::generate_handler![greet, render_video, cancel_render])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
@@ -35,7 +42,11 @@ async fn render_video(
     target_height: u32,
     video_encoder: String,
     audio_encoder: String,
+    cancel_flag: tauri::State<'_, Arc<AtomicBool>>,
 ) -> Result<(), String> {
+    let flag = cancel_flag.inner().clone();
+    flag.store(false, Ordering::Relaxed);
+
     tokio::task::spawn_blocking(move || {
         render_video_internal(
             &window,
@@ -48,10 +59,17 @@ async fn render_video(
             target_height,
             &video_encoder,
             &audio_encoder,
+            flag.clone(),
         )
     })
     .await
     .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+fn cancel_render(cancel_flag: tauri::State<Arc<AtomicBool>>) -> Result<(), String> {
+    cancel_flag.store(true, Ordering::Relaxed);
+    Ok(())
 }
 
 fn render_video_internal(
@@ -65,6 +83,7 @@ fn render_video_internal(
     target_height: u32,
     video_encoder: &str,
     audio_encoder: &str,
+    cancel_flag: Arc<AtomicBool>,
 ) -> Result<(), String> {
     // 1. 数据准备与校验
     // 过滤掉没有开始时间的 Region，并按开始时间排序
@@ -210,6 +229,12 @@ fn render_video_internal(
 
     // 解析进度
     for line in reader.lines() {
+        if cancel_flag.load(Ordering::Relaxed) {
+            // Terminate the FFmpeg process
+            let _ = child.kill();
+            return Err("Canceled".into());
+        }
+
         if let Ok(l) = line {
             if l.starts_with("out_time_us=") {
                 let us_str = l.replace("out_time_us=", "");
