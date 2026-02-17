@@ -233,6 +233,7 @@
         on:play={onPlay}
         on:pause={onPause}
         on:ended={onEnded}
+        on:focus={(e) => e.target.blur()}
       ></audio>
       <button
         type="button"

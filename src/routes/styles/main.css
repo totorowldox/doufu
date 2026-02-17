@@ -214,7 +214,7 @@ button.ghost {
 }
 
 .image-scroll {
-    max-height: 78vh;
+    max-height: 92vh;
     overflow-y: auto;
     overflow-x: hidden;
     position: relative;
@@ -351,7 +351,7 @@ button.ghost {
     flex-direction: column;
     gap: 12px;
 
-    max-height: 78vh;
+    max-height: 92vh;
     overflow-y: auto;
     overflow-x: hidden;
     position: relative;

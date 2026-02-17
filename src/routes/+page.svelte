@@ -114,6 +114,18 @@
 
   function handleKeyDown(e: KeyboardEvent) {
     if (e.target instanceof HTMLInputElement) return; // ignore when typing
+    const availableKeys = [
+      "Space",
+      "ArrowLeft",
+      "ArrowRight",
+      "ArrowUp",
+      "ArrowDown",
+      "Enter",
+      "KeyN",
+      "KeyD",
+    ];
+    if (!availableKeys.includes(e.code)) return;
+    if (e.repeat) return; // ignore held-down keys
     if (e.code === "Space") {
       e.preventDefault();
       if (audioRef) {
@@ -123,8 +135,27 @@
           audioRef.pause();
         }
       }
-    } else if (e.code === "Enter") {
+    } else if (e.code === "ArrowLeft") {
       e.preventDefault();
+      if (audioRef) {
+        audioRef.currentTime = Math.max(0, (audioRef.currentTime ?? 0) - 5);
+      }
+    }
+    else if (e.code === "ArrowRight") {
+      e.preventDefault();
+      if (audioRef) {
+        audioRef.currentTime = Math.max(0, (audioRef.currentTime ?? 0) + 5);
+      }
+    } 
+    else if (e.code === "ArrowUp") {
+      e.preventDefault();
+      jumpToNextRegion(-1);
+    } else if (e.code === "ArrowDown") {
+      e.preventDefault();
+      jumpToNextRegion(1);
+    }
+    else if (e.code === "Enter") {
+      e.preventDefault(); 
       if (selectedRegionId) {
         applyCurrentTime(selectedRegionId);
         jumpToNextRegion();
@@ -217,15 +248,15 @@
     }
   }
 
-  function jumpToNextRegion() {
+  function jumpToNextRegion(direction: 1 | -1 = 1) {
     const currentIndex = regions.findIndex((r) => r.id === selectedRegionId);
     if (currentIndex === -1) return;
-    const nextRegion = regions[currentIndex + 1] ?? null;
+    const nextRegion = regions[currentIndex + direction] ?? null;
     if (nextRegion) {
       focusRegion(nextRegion);
     } else {
       // end jumping
-      selectedRegionId = null;
+      return;
     }
   }
 
