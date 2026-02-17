@@ -1,0 +1,67 @@
+name: Build Windows
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  release:
+    types: [ published ]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Node.js & pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+
+      - name: Install Edge WebView2 Runtime
+        run: |
+          winget install Microsoft.EdgeWebView2Runtime --accept-source-agreements --accept-package-agreements
+        shell: pwsh
+
+      - name: Build Windows Executable
+        run: pnpm tauri build --no-bundle
+
+      - name: List generated files
+        run: dir "${{ github.workspace }}\src-tauri\target\release"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: doufu-windows
+          path: |
+            src-tauri/target/release/*.exe
+          retention-days: 7
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            src-tauri/target/release/*.exe
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
