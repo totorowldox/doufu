@@ -14,6 +14,9 @@ jobs:
     runs-on: windows-latest
     permissions:
       contents: write
+    env:
+      CARGO_INCREMENTAL: 0
+      RUSTFLAGS: "-C debuginfo=0"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -37,10 +40,10 @@ jobs:
         with:
           toolchain: stable
 
-      - name: Install Edge WebView2 Runtime
-        run: |
-          winget install Microsoft.EdgeWebView2Runtime --accept-source-agreements --accept-package-agreements
-        shell: pwsh
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "src-tauri -> target"
 
       - name: Build Windows Executable
         run: pnpm tauri build --no-bundle
